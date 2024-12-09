@@ -66,7 +66,7 @@ diff -qr "$DIR_A" "$DIR_B" | while read -r line; do
             continue
         fi
 
-        # Format for files only in one directory
+        # Otherwise output that the file is only in the one directory
         echo "Only in"
         echo "    $FILE_PATH"
         echo "$FILE_NAME"
