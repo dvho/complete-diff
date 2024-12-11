@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Prompt the user to drag and drop both folders
 echo "Drag and drop the two folders to compare and hit Enter after each one:"
