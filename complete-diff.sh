@@ -8,13 +8,11 @@ ORANGE_3="\x1b[1m\x1b[38;5;172m"
 DARK_CYAN="\x1b[1m\x1b[38;5;36m"
 DEEP_SKY_BLUE="\x1b[1m\x1b[38;5;39m"
 DODGER_BLUE="\x1b[1m\x1b[38;5;33m"
+GREEN="\x1b[1m\x1b[38;5;28m"
 END_COLOR="\x1b[0m" # this resets to default color
 
 # Get the directory of the current script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Add the local bin/color-diff/bin directory to the PATH
-export PATH="$SCRIPT_DIR/bin/colordiff-1.0.21:$PATH"
 
 # Function to check if a file is a text file
 is_text_file() {
@@ -24,6 +22,14 @@ is_text_file() {
     else
         return 1
     fi
+}
+
+# Function to colorize diff output
+colorize_diff() {
+    diff -y "$@" | sed \
+    -e "/[|]/ s/^.*$/${GREEN}&${END_COLOR}/" \
+    -e "/</ s/^.*$/${DARK_RED}&${END_COLOR}/" \
+    -e "/>/ s/^.*$/${DARK_RED}&${END_COLOR}/"
 }
 
 # Prompt the user to drag and drop both folders
@@ -191,10 +197,10 @@ if [ ${#TEXT_FILE_DIFFS_A[@]} -gt 0 ]; then
 
                 echo
                 echo "${WHITE}Difference between${END_COLOR}"
-                echo "    ${ORANGE_3}$relative_file_a${END_COLOR}"
-                echo "    ${ORANGE_3}$relative_file_b${END_COLOR}"
+                echo "    ${DARK_CYAN}$relative_file_a${END_COLOR}"
+                echo "    ${DARK_CYAN}$relative_file_b${END_COLOR}"
                 echo
-                diff -y --suppress-common-lines "$FILE_A" "$FILE_B" | colordiff.pl 2>/dev/null
+                colorize_diff "$FILE_A" "$FILE_B"
                 echo
             else
                 echo "Invalid selection: $((idx + 1))"
