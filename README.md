@@ -8,6 +8,7 @@ User-friendly recursive directory diffing for macOS with some extended capabilit
 - **Verification**: Further integrtates `cmp` for byte-by-byte comparison to verify differences.
 - **Space Handling**: Robust handling of file and directory names with spaces.
 - **User-Friendly Output**: Clear and concise output for easy interpretation of differences.
+- **Choice to use colordiff:** Electively get granular with a local instance the `colordiff` utility.
 
 ## Requirements
 
@@ -23,3 +24,4 @@ User-friendly recursive directory diffing for macOS with some extended capabilit
 
 2. Follow the prompts to enter the paths of the two directories you wish to compare. Each path should be entered on a separate line.
 
+3. Following the initial output, electively inspect character diffs between any differing files.
