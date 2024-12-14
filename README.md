@@ -13,7 +13,7 @@ User-friendly recursive directory diffing for macOS with some extended capabilit
 ## Requirements
 
 - **Unix-like shell**: The script requires a Unix-like shell environment, e.g. those included with macOS (`bash`, `zsh`, `dash`, `ksh`, `tcsh`, `csh` or others).
-- **awk**: This utility is part of the POSIX standard and is included by default in macOS.
+- **sed**: This utility is part of the POSIX standard and is included by default in macOS.
 
 ## Usage
 
