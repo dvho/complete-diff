@@ -14,31 +14,39 @@ END_COLOR="\x1b[0m" # this resets to default color
 # Get the directory of the current script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Function to check if a file is a text file
+# Create a function to check if a file is a text file...
 is_text_file() {
-    local file="$1"
-    if file "$file" | grep -qE 'text|empty'; then
-        return 0
-    else
-        return 1
+    local file="$1" # ...get the file path...
+    if file "$file" | grep -qE 'text|empty'; then #...and if it is a text file...
+        return 0 #...return true...
+    else # ...otherwise...
+        return 1 #...return false
     fi
 }
 
-# Function to colorize diff output
-colorize_diff() {
+# Create a function to check if a directory is empty...
+is_empty_dir() {
+    if [ -d "$1" ] && [ -z "$(ls -A "$1")" ]; then # ...if the directory exists and is empty...
+        return 0 # ...return true...
+    else # ...otherwise...
+        return 1 # ...return false
+    fi
+}
+
+# Create a function to colorize the diff output...
+colorize_file_diff() {
     diff -y "$@" | sed \
     -e "/[|]/ s/^.*$/${GREEN}&${END_COLOR}/" \
     -e "/</ s/^.*$/${DARK_RED}&${END_COLOR}/" \
-    -e "/>/ s/^.*$/${DARK_RED}&${END_COLOR}/"
+    -e "/>/ s/^.*$/${DARK_RED}&${END_COLOR}/" # ...and colorize the output using sed, where the first expression colors the common lines green, the second and third expressions color the lines unique to the first and second files, respectively, red
 }
 
 # Prompt the user to drag and drop both folders
 echo "Drag and drop the two folders to compare and hit Enter after each one:"
 echo
 
-# Read the first directory path
+# Read the first and second directory paths sequentially
 read -r DIR_A
-# Read the second directory path
 read -r DIR_B
 
 # Trim any leading or trailing whitespace from the input
@@ -49,12 +57,12 @@ DIR_B=$(echo "$DIR_B" | xargs)
 DIR_A="${DIR_A%/}"
 DIR_B="${DIR_B%/}"
 
-# Compute the common prefix
-common_part="$DIR_A"
-while [ "${DIR_B#$common_part}" = "${DIR_B}" ] ; do
-    common_part="${common_part%/*}"
-done
-common_part="${common_part%/}"
+# Compute the common prefix...
+common_part="$DIR_A" # ...initialize the common part with the first directory...
+while [ "${DIR_B#$common_part}" = "${DIR_B}" ] ; do # ...and while the second directory does not start with the common part...
+    common_part="${common_part%/*}" # ...remove the last part of the common part
+done # ...until the second directory starts with the common part...
+common_part="${common_part%/}" # ...and remove any trailing slashes
 
 # Display the directories for confirmation
 echo
@@ -62,80 +70,75 @@ echo "${WHITE}First folder:${END_COLOR} ${DARK_CYAN}$DIR_A${END_COLOR}"
 echo "${WHITE}Second folder:${END_COLOR} ${DARK_CYAN}$DIR_B${END_COLOR}"
 echo
 
-# Arrays to store text files that differ
-declare -a TEXT_FILE_DIFFS_A
-declare -a TEXT_FILE_DIFFS_B
-
 # Create a temporary file
 temp_file=$(mktemp "$SCRIPT_DIR/tmp.XXXXXX")
 
-# Use diff to compare the directories and save the output to the temporary file
-diff -qr "$DIR_A" "$DIR_B" > "$temp_file"
+# Use diff to recursively compare the directories, excluding all .git folders, Apple Double Files and all .DS_Store files, then save the output to the temporary file
+diff -qr --exclude='.git' --exclude='._*' --exclude='.DS_Store' "$DIR_A" "$DIR_B" > "$temp_file"
+
+# Sort the temporary file alphabetically
+sort "$temp_file" -o "$temp_file"
 
 # Initialize arrays for text file differences
 TEXT_FILE_DIFFS_A=()
 TEXT_FILE_DIFFS_B=()
 
-# Read the diff output from the temporary file
-while IFS= read -r line; do
+# Read the diff output from the temporary file...
+while IFS= read -r line; do # ...line by line...
     case "$line" in
         Files*)
-            # Extract file paths
+            # ...and if a line contains the word "Files" extract the file paths...
             FILE_A=$(echo "$line" | sed -E 's/^Files (.+) and .+ differ$/\1/' | xargs)
             FILE_B=$(echo "$line" | sed -E 's/^Files .+ and (.+) differ$/\1/' | xargs)
 
-            # Ignore .DS_Store and AppleDouble files
-            if [ "$(basename "$FILE_A")" = ".DS_Store" ] || [ "$(basename "$FILE_B")" = ".DS_Store" ]; then
-                continue
-            fi
-            if [ "$(basename "$FILE_A")" = ._* ] || [ "$(basename "$FILE_B")" = ._* ]; then
-                continue
-            fi
-
-            # Use cmp to check if files are truly different
+            # ...use cmp to check if the files are truly different and skip if they are not...
             if cmp -s "$FILE_A" "$FILE_B"; then
-                # Files are identical, skip output
                 continue
             fi
 
-            # Get relative paths
+            # ...get relative paths...
             relative_file_a="${FILE_A#$common_part/}"
             relative_file_b="${FILE_B#$common_part/}"
 
-            # Output that the files are different
+            # ...output that the files are different...
             echo "${WHITE}Files differ${END_COLOR}"
             echo "    ${ORANGE_3}$relative_file_a${END_COLOR}"
             echo "    ${ORANGE_3}$relative_file_b${END_COLOR}"
             echo
 
-            # Check if both files are text files
-            if is_text_file "$FILE_A" && is_text_file "$FILE_B"; then
-                # Add files to the arrays
+            # ...check if both files are text files...
+            if is_text_file "$FILE_A" && is_text_file "$FILE_B"; then # ...and if they are...
                 TEXT_FILE_DIFFS_A+=("$FILE_A")
                 TEXT_FILE_DIFFS_B+=("$FILE_B")
-            fi
+            fi # ...add them to their respective arrays...
             ;;
         Only*)
-            # Extract file path and name
-            FILE_PATH=$(echo "$line" | sed -E 's/^Only in (.+): .+$/\1/' | xargs)
-            FILE_NAME=$(echo "$line" | sed -E 's/^Only in .+: (.+)$/\1/')
+            # ...if a line contains the word "Only" extract the directory paths...
+            DIR_PATH=$(echo "$line" | sed -E 's/^Only in (.+): .+$/\1/')
+            DIR_NAME=$(echo "$line" | sed -E 's/^Only in .+: (.+)$/\1/')
+            PARENT_DIR=$(echo "$line" | sed -E 's/^Only in ([^:]+): .+$/\1/')
 
-            # Ignore .DS_Store and AppleDouble files
-            if [ "$FILE_NAME" = ".DS_Store" ]; then
-                continue
+            if [ -d "$DIR_PATH/$DIR_NAME" ]; then # ...if it's a directory...
+                if is_empty_dir "$DIR_PATH/$DIR_NAME"; then # ...and it's empty...
+                    echo "${WHITE}Only in ${DARK_CYAN}$PARENT_DIR${END_COLOR}" # ...output the parent directory...
+                    echo "    ${DARK_RED}$DIR_NAME${END_COLOR}" # ...and list the empty directory...
+                    echo
+                else # ...otherwise...
+                    echo "${WHITE}Only in ${DARK_CYAN}$PARENT_DIR${END_COLOR}" # ...output the parent directory...
+                    find "$DIR_PATH/$DIR_NAME" -type f \
+                        ! -path '*/.git/*' \
+                        ! -name '._*' \
+                        ! -name '.DS_Store' | while read -r found_file; do # ...and list the files in the directory, excluding all .git folders, Apple Double Files and all .DS_Store files...
+                        relative_file="${found_file#$DIR_PATH/}" # ...get the relative path...
+                        echo "    ${DARK_RED}$relative_file${END_COLOR}" # ...and output the relative path...
+                    done
+                    echo
+                fi
+            else # ...otherwise...
+                echo "${WHITE}Only in ${DARK_CYAN}$PARENT_DIR${END_COLOR}" # ...output the parent directory...
+                echo "    ${DARK_RED}$DIR_NAME${END_COLOR}" # ...and list the file...
+                echo
             fi
-            if [ "$FILE_NAME" = ._* ]; then
-                continue
-            fi
-
-            # Get full path and relative path
-            FULL_PATH="$FILE_PATH/$FILE_NAME"
-            relative_file="${FULL_PATH#$common_part/}"
-
-            # Output that the file is only in one directory
-            echo "${WHITE}Only in ${DARK_CYAN}$(dirname "$relative_file")${END_COLOR}"
-            echo "    ${DARK_RED}$(basename "$relative_file")${END_COLOR}"
-            echo
             ;;
     esac
 done < "$temp_file"
@@ -143,11 +146,11 @@ done < "$temp_file"
 # Remove the temporary file
 rm "$temp_file"
 
-# Check if there are any text files that differ
-if [ ${#TEXT_FILE_DIFFS_A[@]} -gt 0 ]; then
+# Check if there are any text files that differ...
+if [ ${#TEXT_FILE_DIFFS_A[@]} -gt 0 ]; then # ...if there are differing text files...
     echo
-    echo "${WHITE}Text files that differ:${END_COLOR}"
-    for i in "${!TEXT_FILE_DIFFS_A[@]}"; do
+    echo "${WHITE}Text files that differ:${END_COLOR}" # ...output the differing text files...
+    for i in "${!TEXT_FILE_DIFFS_A[@]}"; do # ...line by line...
         idx=$((i + 1))
         file_a="${TEXT_FILE_DIFFS_A[$i]}"
         file_b="${TEXT_FILE_DIFFS_B[$i]}"
@@ -156,57 +159,56 @@ if [ ${#TEXT_FILE_DIFFS_A[@]} -gt 0 ]; then
         relative_file_a="${file_a#$common_part/}"
         relative_file_b="${file_b#$common_part/}"
 
-        echo "${WHITE}$idx. ${DEEP_SKY_BLUE}$relative_file_a${WHITE} vs ${DODGER_BLUE}$relative_file_b${END_COLOR}"
+        echo "${WHITE}$idx. ${DEEP_SKY_BLUE}$relative_file_a${WHITE} vs ${DODGER_BLUE}$relative_file_b${END_COLOR}" # ...and output the relative paths...
     done
 
     echo
-    # Display the prompt only once
+    # Display the main prompt only once...
     echo "Enter the numbers of the files you want to diff (e.g., 1 2 3, or 'a' for all, or 'q' to Quit):"
 
-    while true; do
-        # Minimal prompt inside the loop
-        printf '> '
-        # Read user input (without repeating the prompt)
-        read -r SELECTION
+    while true; do # ...and loop until the user quits...
 
-        if [ "$SELECTION" = "q" ] || [ "$SELECTION" = "Q" ]; then
+        printf '> ' # ...using a minimal prompt once inside the loop...
+
+        read -r SELECTION # ...and read the user input...
+
+        if [ "$SELECTION" = "q" ] || [ "$SELECTION" = "Q" ]; then # ...listen for the quit command...
             break
         fi
 
-        if [ "$SELECTION" = "a" ] || [ "$SELECTION" = "A" ]; then
+        if [ "$SELECTION" = "a" ] || [ "$SELECTION" = "A" ]; then # ...listen for the all command...
             SELECTION=""
             for j in $(seq 1 ${#TEXT_FILE_DIFFS_A[@]}); do
                 SELECTION+="$j "
             done
         fi
 
-        # Split SELECTION into an array
-        IFS=' ,;' read -r -a SELECTED_INDICES <<< "$SELECTION"
+        IFS=' ,;' read -r -a SELECTED_INDICES <<< "$SELECTION" # ...split the input into an array of indices...
 
-        for index in "${SELECTED_INDICES[@]}"; do
-            # Adjust index to zero-based
-            idx=$((index - 1))
-            # Check if index is within bounds
-            if [ $idx -ge 0 ] && [ $idx -lt ${#TEXT_FILE_DIFFS_A[@]} ]; then
+        for index in "${SELECTED_INDICES[@]}"; do # ...loop through the selected indices...
+
+            idx=$((index - 1)) # ...get the index of the selected file...
+
+            if [ $idx -ge 0 ] && [ $idx -lt ${#TEXT_FILE_DIFFS_A[@]} ]; then # ...if the index is valid get the file paths...
                 FILE_A="${TEXT_FILE_DIFFS_A[$idx]}"
                 FILE_B="${TEXT_FILE_DIFFS_B[$idx]}"
 
-                # Get relative paths for display
+                # ...get the relative paths for display...
                 relative_file_a="${FILE_A#$common_part/}"
                 relative_file_b="${FILE_B#$common_part/}"
 
                 echo
-                echo "${WHITE}Difference between${END_COLOR}"
+                echo "${WHITE}Difference between${END_COLOR}" # ...output the relative paths...
                 echo "    ${DARK_CYAN}$relative_file_a${END_COLOR}"
                 echo "    ${DARK_CYAN}$relative_file_b${END_COLOR}"
                 echo
-                colorize_diff "$FILE_A" "$FILE_B"
+                colorize_file_diff "$FILE_A" "$FILE_B" # ...and colorize the diff outputs...
                 echo
-            else
-                echo "Invalid selection: $((idx + 1))"
+            else # ...otherwise...
+                echo "Invalid selection: $((idx + 1))" # ...output an error message...
             fi
         done
     done
-else
-    echo "No differing text files found."
+else # ...otherwise...
+    echo "No differing text files found." # ...if there are no differing text files, output as such
 fi

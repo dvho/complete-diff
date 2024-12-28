@@ -12,13 +12,13 @@ User-friendly recursive directory diffing for macOS with some extended capabilit
 
 ## Requirements
 
-- **Unix-like shell**: The script requires a Unix-like shell environment, e.g. those included with macOS (`bash`, `zsh`, `dash`, `ksh`, `tcsh`, `csh` or others).
-- **sed**: This utility is part of the POSIX standard and is included by default in macOS.
+- **Unix-like shell**: The script requires a Unix-like shell environment, e.g. those included with macOS (`sh`, `bash`, `zsh`, `dash`, `ksh`, `tcsh`, `csh` or any other).
+- **POSIX standard utilities**: The script requires POSIX standard utilities (`diff`, `sed`, `xargs`, `grep`, `find`, `file`, `mktemp`, `sort`, `cmp`, `seq`, `dirname`, `pwd`, `printf`, `echo`).
 
 ## Usage
 
 1. Run the script:
-   ```bash
+   ```sh
    ./complete-diff.sh
    ```
 
