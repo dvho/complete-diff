@@ -1,15 +1,15 @@
 #!/bin/sh
 
 
-# Create an 8 bit color map for outputs using    https://devmemo.io/cheatsheets/terminal_escape_code/
-DARK_RED="\x1b[1m\x1b[38;5;88m"
-WHITE="\x1b[1m\x1b[38;5;15m"
-ORANGE_3="\x1b[1m\x1b[38;5;172m"
-DARK_CYAN="\x1b[1m\x1b[38;5;36m"
-DEEP_SKY_BLUE="\x1b[1m\x1b[38;5;39m"
-DODGER_BLUE="\x1b[1m\x1b[38;5;33m"
-GREEN="\x1b[1m\x1b[38;5;28m"
-END_COLOR="\x1b[0m" # this resets to default color
+# Create an 8-bit color map for outputs using ANSI escape codes from    https://devmemo.io/cheatsheets/terminal_escape_code/    where the colors have been rewritten to use printf to ensure that the escape sequences in the colorize_file_diff function, which leverage the sed utility, work consistently across different environments, including legacy systems
+DARK_RED=$(printf '\033[1;38;5;88m')
+WHITE=$(printf '\033[1;38;5;15m')
+ORANGE_3=$(printf '\033[1;38;5;172m')
+DARK_CYAN=$(printf '\033[1;38;5;36m')
+DEEP_SKY_BLUE=$(printf '\033[1;38;5;39m')
+DODGER_BLUE=$(printf '\033[1;38;5;33m')
+GREEN=$(printf '\033[1;38;5;28m')
+END_COLOR=$(printf '\033[0m') # this resets to default color
 
 # Get the directory of the current script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,8 +37,8 @@ is_empty_dir() {
 colorize_file_diff() {
     diff -y "$@" | sed \
     -e "/[|]/ s/^.*$/${GREEN}&${END_COLOR}/" \
-    -e "/</ s/^.*$/${DARK_RED}&${END_COLOR}/" \
-    -e "/>/ s/^.*$/${DARK_RED}&${END_COLOR}/" # ...and colorize the output using sed, where the first expression colors the common lines green, the second and third expressions color the lines unique to the first and second files, respectively, red
+    -e "/\\</ s/^.*$/${DARK_RED}&${END_COLOR}/" \
+    -e "/\\>/ s/^.*$/${DARK_RED}&${END_COLOR}/" # ...and colorize the output using sed, where the first expression colors the common lines green, the second and third expressions color the lines unique to the first and second files, respectively, red
 }
 
 # Prompt the user to drag and drop both folders
