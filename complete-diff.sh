@@ -35,10 +35,23 @@ is_empty_dir() {
 
 # Create a function to colorize the diff output...
 colorize_file_diff() {
-    diff -y "$@" | sed \
-    -e "/[|]/ s/^.*$/${GREEN}&${END_COLOR}/" \
-    -e "/\\</ s/^.*$/${DARK_RED}&${END_COLOR}/" \
-    -e "/\\>/ s/^.*$/${DARK_RED}&${END_COLOR}/" # ...and colorize the output using sed, where the first expression colors the common lines green, the second and third expressions color the lines unique to the first and second files, respectively, red
+    # ...and, so the sed rules don't incorrectly color lines from the files themselves which contain <, > or |, create two temporary files...
+    temp_file1=$(mktemp "$SCRIPT_DIR/tmp.XXXXXX")
+    temp_file2=$(mktemp "$SCRIPT_DIR/tmp.XXXXXX")
+
+    # ...and within them replace characters <, > and | with parsing characters ▛,▜ and ▐, respectively...
+    sed 's/</▛/g; s/>/▜/g; s/|/▐/g' "$FILE_A" > "$temp_file1"
+    sed 's/</▛/g; s/>/▜/g; s/|/▐/g' "$FILE_B" > "$temp_file2"
+
+    # ...run side-by-side diff on the parsed copies...
+    diff -y "$temp_file1" "$temp_file2" \
+    | sed \
+        -e "/|/s/^.*$/${GREEN}&${END_COLOR}/" \
+        -e "/</s/^.*$/${DARK_RED}&${END_COLOR}/" \
+        -e "/>/s/^.*$/${DARK_RED}&${END_COLOR}/" \
+        | sed -e "s/▛/</g; s/▜/>/g; s/▐/|/g" # ...colorize the output using sed, where the first expression colors the common lines green, the second and third expressions color the lines unique to the first and second files, respectively, red, then pipe that output to another sed command that reverts the parsing characters, ▛, ▜ and ▐ with their original characters, <, > and |...
+
+    rm "$temp_file1" "$temp_file2" # ...and remove the temporary files
 }
 
 # Prompt the user to drag and drop both folders
